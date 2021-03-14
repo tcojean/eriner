@@ -1,7 +1,8 @@
 eriner
 ======
 
-A fork of the Powerline-inspired [agnoster] theme.
+A fork of the Powerline-inspired [agnoster] theme. In addition to the base
+eriner, the last command's execution time is printed like in asciiship.
 
 The aim of this theme is to only show you *relevant* information. Like most
 prompts, it will only show git information when in a git working directory.
@@ -20,11 +21,12 @@ What does it show?
     * `⚙` when there are background jobs.
     * `r` when you're in a [ranger] spawned shell.
     * Python [venv] indicator.
-    * `username@hostname` when in a ssh session.
+    * `username@hostname` when in a ssh session or when root.
   * Short working directory segment.
   * Git segment (background color varies if working tree is clean or dirty):
     * Current branch name, or commit short hash when in ['detached HEAD' state].
     * `±` when in a dirty working tree.
+  * How long the last command took to execute, if greater than 2 seconds.
 
 Settings
 --------

@@ -11,6 +11,10 @@ _prompt_eriner_main() {
   _prompt_eriner_end
 }
 
+_prompt_eriner_right() {
+  _prompt_eriner_exectime
+}
+
 ### Segment drawing
 # Utility functions to make it easy and re-usable to draw segmented prompts.
 
@@ -28,6 +32,11 @@ _prompt_eriner_standout_segment() {
   if [[ -n ${BG_COLOR} ]] print -n "%K{${BG_COLOR}}%k"
   print -n "${2}%s"
   BG_COLOR=${1}
+}
+
+_prompt_eriner_right_segment() {
+  if [[ -n "${2}" ]] print -n "%F{${1}}%f"
+  print -n "%K{${1}}${2}%k"
 }
 
 # End the prompt, closing last segment.
@@ -48,7 +57,7 @@ _prompt_eriner_status() {
   if (( $(jobs -l | wc -l) )) segment+=' %F{cyan}⚙'
   if (( RANGER_LEVEL )) segment+=' %F{cyan}r'
   if [[ -n ${VIRTUAL_ENV} ]] segment+=" %F{cyan}${VIRTUAL_ENV:t}"
-  if [[ -n ${SSH_TTY} ]] segment+=" %F{%(!.yellow.default)}%n@%m"
+  if [[ -n ${SSH_TTY} || ${EUID} == 0 ]] segment+=" %F{%(!.yellow.default)}%n@%m"
   if [[ -n ${segment} ]]; then
     _prompt_eriner_segment ${STATUS_COLOR} "${segment} "
   fi
@@ -77,10 +86,53 @@ _prompt_eriner_git() {
   fi
 }
 
+# Time formatting utilities
+# Most of the code comes from zimfw/asciiship
+zmodload zsh/datetime
+
+_prompt_eriner_exectime_preexec() {
+  prompt_eriner_preexec_s=${EPOCHSECONDS}
+}
+
+_prompt_eriner_exectime_precmd() {
+  if (( prompt_eriner_preexec_s )); then
+    local -ri elapsed_s=$(( EPOCHSECONDS - prompt_eriner_preexec_s ))
+    local -ri s=$(( elapsed_s%60))
+    local -ri m=$(( (elapsed_s/60)%60 ))
+    local -ri h=$(( elapsed_s/3600 ))
+    unset prompt_eriner_preexec_s
+    local elapsed_time
+    if (( h > 0 )); then
+      elapsed_time=${h}h${m}m
+    elif (( m > 0 )); then
+      elapsed_time=${m}m${s}s
+    elif (( s > 2 )); then
+      elapsed_time=${s}s
+    else
+      # Don't show elapsed time
+      unset prompt_eriner_elapsed_time
+      return
+    fi
+    prompt_eriner_elapsed_time=" %B%F{white}took %B%F{yellow}${elapsed_time}%b%f "
+  else
+    # Clear previous when hitting ENTER with no command to execute
+    unset prompt_eriner_elapsed_time
+  fi
+}
+
+autoload -Uz add-zsh-hook
+add-zsh-hook preexec _prompt_eriner_exectime_preexec
+add-zsh-hook precmd _prompt_eriner_exectime_precmd
+
+_prompt_eriner_exectime() {
+  _prompt_eriner_right_segment ${EXECTIME_COLOR} "${prompt_eriner_elapsed_time}"
+}
+
 : ${STATUS_COLOR=black}
 : ${PWD_COLOR=cyan}
 : ${CLEAN_COLOR=green}
 : ${DIRTY_COLOR=yellow}
+: ${EXECTIME_COLOR=black}
 VIRTUAL_ENV_DISABLE_PROMPT=1
 
 setopt nopromptbang prompt{cr,percent,sp,subst}
@@ -98,4 +150,4 @@ if (( ${+functions[git-info]} )); then
 fi
 
 PS1='$(_prompt_eriner_main)'
-unset RPS1
+RPS1='$(_prompt_eriner_right)'
